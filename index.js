@@ -9,7 +9,8 @@ var solc = require('solc')
 //constants
 var rpcnode = "http://localhost";
 var rpcport = "8545";
-var sampleContract = "sample_contract.sol";
+var sampleContract = "ReferralSell.sol";
+var platformAddress = "0x93c517e1f32084f8c2794abad6efe802e52c3759";
 
 //initialization
 var app = express();
@@ -20,72 +21,68 @@ function initWeb3() {
     var web3 = new Web3(Web3.givenProvider || new Web3.providers.HttpProvider(rpcnode + ':' + rpcport));
 }
 
-function generateCPAContract(share, referral, seller) {
-    //exec("testrpc");
-    fs.readFile(sampleContract, function(err, buf) {
+function generateCPAContract(platformShare, referralShare, referral, seller, platform) {
+    return new Promise((resolve) => {
+        fs.readFile(sampleContract, function(err, buf) {
+            if (err)
+                resolve({ error: err });
 
-        if (err)
-            throw err;
-        var data = {
-            "share": share,
-            "referral": referral,
-            "seller": seller
-        };
-        var contractString = buf.toString('utf8');
-        var template = handlebars.compile(contractString)(data);
-        var output = solc.compile(template, 1);
-        // Object.keys(contracts.contracts)
-        const bytecode = output.contracts[':ReferralSell'].bytecode;
-        const abi = JSON.parse(output.contracts[':ReferralSell'].interface);
-        const contract = new web3.eth.Contract(abi);
-        var contractInstance = contract.deploy({
-            data: '0x' + bytecode
+            var data = {
+                "platformShare": platformShare,
+                "referralShare": referralShare,
+                "referral": referral,
+                "seller": seller,
+                "platform": platform
+            };
+            var contractString = buf.toString('utf8');
+            var template = handlebars.compile(contractString)(data);
+            var output = solc.compile(template, 1);
+            const bytecode = output.contracts[':ReferralSell'].bytecode;
+            const abi = JSON.parse(output.contracts[':ReferralSell'].interface);
+            const contract = new web3.eth.Contract(abi);
+            var contractInstance = contract.deploy({
+                data: '0x' + bytecode
+            });
+            contractInstance.estimateGas().then((gas) => {
+                console.log("estimatedGas = " + gas);
+                return gas;
+            }).then((estimatedGas) => {
+                contractInstance.send({
+                    data: '0x' + bytecode,
+                    from: seller,
+                    gas: estimatedGas
+                })
+                    .on('error', (err) => {
+                        console.log("error " + err);
+                        resolve({ error: err });
+                    })
+                    // .on('receipt', ())
+                    .on('confirmation', (confirmationNumber, receipt) => {
+                        console.log("In confirmation");
+                    })
+                    .on('receipt', (receipt) => {
+                        console.log("in receipt()");
+                        resolve({ transactionHash: receipt.transactionHash, contractAddress: receipt.contractAddress, receipt });
+                    })
+                    .then((res) => {
+                        var a = 0;
+                        console.log("in then()");
+                    });
+            });
         });
-        contractInstance.estimateGas().then((gas) => {
-            console.log(gas);
-            // contractInstance.send({
-            //     from: 'seller',
-            //     gas: 1500000,
-            //     gasPrice: '30000000000000'
-            // });
-        });
-        // contractInstance.estimateGas(function(err, gas) {
-        //     console.log(gas);
-        // });
-        // var contractData = contract.new.getData();
-        // var estimate = web3.eth.estimateGas({ data: contractData })
-
-        // const contractInstance = contract.new({
-        //     data: '0x' + bytecode,
-        //     from: seller,
-        //     gas: 90000 * 2
-        // }, (err, res) => {
-        //     if (err) {
-        //         console.log(err);
-        //         return;
-        //     }
-
-        //     // Log the tx, you can explore status with eth.getTransaction()
-        //     console.log(res.transactionHash);
-
-        //     // If we have an address property, the contract was deployed
-        //     if (res.address) {
-        //         console.log('Contract address: ' + res.address);
-        //         // Let's test the deployed contract
-        //         testContract(res.address);
-        //     }
-        // });
     });
-    // template
-    // compile
 }
 
 app.get('/ads', function(req, res) {
-    var share = req.query['share'];
+    var platformShare = req.query['platformShare'];
+    var referralShare = req.query['referralShare'];
+
     var referral = req.query['referral'];
     var seller = req.query['seller'];
-    generateCPAContract(share, referral, seller);
-    // req.params.balance
+    var platform = platformAddress;
+    generateCPAContract(platformShare, referralShare, referral, seller, platform).then((result) => {
+        res.json(result);
+    });
 });
 
 app.get('/', function(req, res) {
