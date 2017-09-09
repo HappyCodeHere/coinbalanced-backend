@@ -1,3 +1,11 @@
+INSTALL
+=======
+You should have mongodb installed:
+`npm install -g mongodb`
+
+npm install
+
+
 С сайта пришла инфа о контракте, заполнение шаблона (referrer share, адрес продавца, адрес реферала)
 
 Покупатель вызывает контракт с суммой покупкм
