@@ -12,27 +12,26 @@ contract TreatyWithFixedPayment {
     uint public currentSum = 0;
 
     uint public performerAmount;
-    uint public platformAmount;
+    uint public platformShare;
 
     function TreatyWithFixedPayment(
         address _customer,
         address _performer,
         address _platform,
-        uint _minSum,
-        uint _maxSum,
         uint _performerAmount,
-        uint _platformAmount
+        uint _platformShare,
+        uint _minSum
     ) {
         customer = _customer;
         performer = _performer;
         platform = _platform;
         minSum = _minSum;
-        maxSum = _maxSum;        
         performerAmount = _performerAmount;
-        platformAmount = _platformAmount;
+        platformShare = _platformShare;
     }
 
     function performPayments() {
+      uint platformAmount = this.balance * platformShare / 100;
       uint amountToCustomer = this.balance - performerAmount - platformAmount;
       performer.transfer(performerAmount);
       platform.transfer(platformAmount);
@@ -41,7 +40,7 @@ contract TreatyWithFixedPayment {
 
     function () payable {
         buyers.push(msg.sender);
-        if (this.balance >= minSum && this.balance <= maxSum) {
+        if (this.balance >= minSum) {
             performPayments();
         }
     }

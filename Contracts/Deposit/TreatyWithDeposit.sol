@@ -19,11 +19,12 @@ contract TreatyWithDeposit {
         address _customer,
         address _performer,
         address _platform,
-        uint _minSum,
-        uint _maxSum,
-        uint _depositAmount,
         uint _performerPercent,
-        uint _platformPercent
+        uint _platformPercent,
+        uint _minSum,
+
+        uint _depositAmount
+
     ) {
         performerPercent = _performerPercent;
         platformPercent = _platformPercent;
@@ -32,7 +33,6 @@ contract TreatyWithDeposit {
         performer = _performer;
         platform = _platform;
         minSum = _minSum;
-        maxSum = _maxSum;
         depositAmount = _depositAmount;
     }
 
