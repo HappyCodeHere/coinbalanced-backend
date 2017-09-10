@@ -6,6 +6,8 @@ var handlebars = require('handlebars');
 var fs = require('fs');
 var solc = require('solc');
 var uuidv1 = require('uuid/v1');
+const bodyParser = require('body-parser');
+
 // var CPAContractModel = require('./models').CPAContractModel;
 // var session = require("express-session");
 
@@ -116,15 +118,17 @@ app.use(function (req, res, next) {
     next();
 });
 
-app.get('/v1/create', function (req, res) {
-    console.log("/v1/create")
+app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.json());
+
+app.post('/v1/create', function (req, res) {
+    console.log("/v1/create");
     if (!req.body) {
         res.json({
             error: 'invalid request body'
         });
         return;
     }
-
     var lastContract = contractsCollection.findOne({ $query: {}, $orderby: { id: -1 } });
     if (!lastContract)
         lastContractID = 0;
