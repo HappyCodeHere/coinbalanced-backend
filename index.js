@@ -18,6 +18,7 @@ var MongoClient = require('mongodb').MongoClient,
 var contractsCollection;
 var app;
 var web3;
+var obj;
 
 //constants
 var mongodbnode = 'mongodb://localhost:27017/coinbalanced';
@@ -26,63 +27,15 @@ var rpcport = "8545";
 var sampleContract = "performerSell.sol";
 var platformAddress = "0x93c517e1f32084f8c2794abad6efe802e52c3759";
 var platformShare = 1;
-
-// function generateCPAContract(platformShare, performerShare, performer, customer, platform) {
-//     return new Promise((resolve) => {
-//         fs.readFile(sampleContract, function (err, buf) {
-//             if (err)
-//                 resolve({ error: err });
-
-//             var data = {
-//                 "platformShare": platformShare,
-//                 "performerShare": performerShare,
-//                 "performer": performer,
-//                 "customer": customer,
-//                 "platform": platform
-//             };
-//             var contractString = buf.toString('utf8');
-//             var template = handlebars.compile(contractString)(data);
-//             var output = solc.compile(template, 1);
-//             const bytecode = output.contracts[':performerSell'].bytecode;
-//             const abi = JSON.parse(output.contracts[':performerSell'].interface);
-//             const contract = new web3.eth.Contract(abi);
-//             var contractInstance = contract.deploy({
-//                 data: '0x' + bytecode
-//             });
-//             contractInstance.estimateGas().then((gas) => {
-//                 console.log("estimatedGas = " + gas);
-//                 return gas;
-//             }).then((estimatedGas) => {
-//                 contractInstance.send({
-//                     data: '0x' + bytecode,
-//                     from: customer,
-//                     gas: estimatedGas
-//                 })
-//                     .on('error', (err) => {
-//                         console.log("error " + err);
-//                         resolve({ error: err });
-//                     })
-//                     // .on('receipt', ())
-//                     .on('confirmation', (confirmationNumber, receipt) => {
-//                         console.log("In confirmation");
-//                     })
-//                     .on('receipt', (receipt) => {
-//                         console.log("in receipt()");
-//                         resolve({ transactionHash: receipt.transactionHash, contractAddress: receipt.contractAddress, receipt });
-//                     })
-//                     .then((res) => {
-//                         var a = 0;
-//                         console.log("in then()");
-//                     });
-//             });
-//         });
-//     });
-// }
+var minSum = 100;
 
 function generateContractFromRequest(req
-    // platformShare, performerShare, performer, customer, platform
 ) {
     var contractPath = "Contracts/" + contractFromRequest(req);
+    // var contractPath = "Contracts/nonDeposit/TreatyWithAmountOfPaymentPercent.sol";
+    // test();
+    // req = obj;
+
     return new Promise((resolve) => {
         fs.readFile(contractPath, function (err, buf) {
             if (err)
@@ -108,8 +61,8 @@ function generateContractFromRequest(req
                 args.push(req.performer.performerShare);
             }
             args.push(platformShare);
-            if (req.performer.performerFixedSum) {
-                args.push(req.performer.performerFixedSum);
+            if (req.payment.paymentType === "onSum") {
+                args.push(web3.utils.toWei(minSum));
             }
             if (req.performer.depositSum) {
                 args.push(web3.utils.toWei(req.performer.depositSum));
@@ -119,7 +72,7 @@ function generateContractFromRequest(req
                 arguments: args
             });
             contractInstance.estimateGas().then((gas) => {
-                console.log("contract_id = " + req.id + "; estimatedGas: " + estimatedGas);
+                console.log("contract_id = " + req.id + "; estimatedGas: " + gas);
                 return gas;
             }).then((estimatedGas) => {
                 contractInstance.send({
@@ -200,7 +153,8 @@ app.post('/v1/create', function (req, res) {
         return;
     }
 
-    generateContractFromRequest(req.body).then((contract) => {
+    generateContractFromRequest(req.body).then((receipt) => {
+        this.receipt = receipt;
         contractsCollection.findOne({ $query: {}, $orderby: { id: -1 } }, function (err, lastContract) {
             if (err) {
                 console.log(err);
@@ -214,6 +168,8 @@ app.post('/v1/create', function (req, res) {
                 lastContractID = lastContract.id + 1;
 
             req.body.id = lastContractID;
+            req.body.transactionHash = receipt.transactionHash;
+            req.body.contractAddress = receipt.contractAddress;
             contractsCollection.insertOne(req.body,
                 function (err, r) {
                     if (err) {
@@ -305,18 +261,33 @@ app.post('/v1/delete', function (req, res) {
 
 app.get('/v1/contracts', function (req, res) {
     contractsCollection.find().toArray(function (err, docs) {
-        console.log(docs);
+        // console.log(docs);
         res.json(docs);
     });
-    // res.json();
 });
 
 
 function test() {
-    var obj = {
-        // deposit: {
-        //     depositSum : 100;
-        // }
+    obj = {
+        deposit: {
+            depositSum : 100
+        },
+        payment: {
+            paymentType: 
+                    "onSum"
+                    // "everyTransaction"
+        },
+        customer: {
+            customerName: "nikita",
+            customerAddress: "0xfed4354865b65a4639e6679558d9475bd4cb77bf",
+            customerShare: 1
+        },
+        performer: {
+            performerName: "margaret",
+            performerAddress: "0x37c9e4f27608b1fbacafb262931c4afb07db391e",
+            performerPayType: "percent",
+            performerShare: 2,
+        }
     }
     /*    caseTemplateId[num; ]
 
