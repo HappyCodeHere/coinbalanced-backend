@@ -19,7 +19,7 @@ var contractsCollection;
 var app;
 
 //constants
-var mongodbnode = 'mongodb://localhost:27017/myproject';
+var mongodbnode = 'mongodb://localhost:27017/coinbalanced';
 var rpcnode = "http://localhost";
 var rpcport = "8545";
 var sampleContract = "performerSell.sol";
@@ -78,6 +78,10 @@ function generateCPAContract(platformShare, performerShare, performer, customer,
     });
 }
 
+function collectionExists() {
+
+}
+
 function init() {
     app = express();
     var web3 = new Web3();
@@ -89,19 +93,13 @@ function init() {
                 console.log("cannot connect to mongoDB server");
                 reject(err);
             }
-            DB = db;
             assert.equal(null, err);
             console.log("Connected successfully to mongoDB server");
 
-            var contractDB = db.db('contractDB');
-            //   Create a collection
-            contractsCollection = contractDB.collection('contracts');
-            // contractsCollection.find().toArray(function(err, docs) {
-
-            // });
+            contractsCollection = db.collection('contracts');
             resolve(contractsCollection);
         });
-    }).then((contractsDB) => {
+    }).then(() => {
         var server = app.listen(8081, function () {
             var host = server.address().address;
             var port = server.address().port;
@@ -121,35 +119,67 @@ app.use(function (req, res, next) {
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
 
+// // create application/json parser
+// var jsonParser = bodyParser.json()
+
+// // create application/x-www-form-urlencoded parser
+// var urlencodedParser = bodyParser.urlencoded({ extended: false })
+
 app.post('/v1/create', function (req, res) {
     console.log("/v1/create");
+    var contract = req.body;
     if (!req.body) {
         res.json({
             error: 'invalid request body'
         });
         return;
     }
-    var lastContract = contractsCollection.findOne({ $query: {}, $orderby: { id: -1 } });
-    if (!lastContract)
-        lastContractID = 0;
-    else
-        lastContractID = lastContract.id + 1;
+    contractsCollection.findOne({ $query: {}, $orderby: { id: -1 }}, function(err, lastContract) {
+        if (err) {
+            console.log(err)
+            return;
+        }
 
-    req.body.id = lastContractID;
+        if (!lastContract)
+            lastContractID = 0;
+        else 
+            lastContractID = lastContract.id + 1;
 
-    contractsCollection.insertOne(
-        req.body
+        req.body.id = lastContractID;
+        
+            contractsCollection.insertOne(
+                req.body, function (err, r) {
+                    if (err) {
+                        console.log(err);
+                        res.send(400, "err");
+                    }
+                });
+            res.json({
+                status: "OK"
+            })
+    }); 
 
-        // platformShare: req.query['platformShare'],
-        // performerShare: req.query['performerShare'],
-        // performer: req.query['performer'],
-        // customer: req.query['customer'],
-        // platform: platformAddress
 
 
-    );
-    res.send()
 });
+
+function chooseContract() {
+    var contractMap = {
+        0: "ReferralSell",
+        //deposit
+        1: "TreatyWithAmountOfPaymentFixed",
+        2: "TreatyWithAmountOfPaymentPercent",
+
+        3: "TreatyWithDeposit",
+        4: "TreatyWithFixedPayment",
+        //no-deposit
+        5: "TreatyWithAmountOfPaymentFixed",
+        6: "TreatyWithAmountOfPaymentPercent",
+
+        7: "TreatyWithFixedPayment",
+        8: "TreatyWithoutDeposit"
+    }
+}
 
 app.get('/createContract', function (req, res) {
     var platformShare = req.query['platformShare'];
@@ -165,7 +195,11 @@ app.get('/createContract', function (req, res) {
 });
 
 app.get('/viewcontract', function (req, res) {
+    // req.
+});
 
+app.post('/v1/delete', function (req, res) {
+    // req.query
 });
 
 // app.get('/savecontract', )
@@ -221,10 +255,3 @@ app.get('/v1/contracts', function (req, res) {
 
     // res.json();
 });
-
-// app.get('/', function (req, res) {
-//     // console.log("test");
-// });
-
-
-// Use connect method to connect to the server
