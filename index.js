@@ -110,7 +110,29 @@ function init() {
 
 init();
 
+app.use(function (req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+});
+
 app.get('/v1/create', function (req, res) {
+    console.log("/v1/create")
+    if (!req.body) {
+        res.json({
+            error: 'invalid request body'
+        });
+        return;
+    }
+
+    var lastContract = contractsCollection.findOne({ $query: {}, $orderby: { id: -1 } });
+    if (!lastContract)
+        lastContractID = 0;
+    else
+        lastContractID = lastContract.id + 1;
+
+    req.body.id = lastContractID;
+
     contractsCollection.insertOne(
         req.body
 
@@ -122,6 +144,7 @@ app.get('/v1/create', function (req, res) {
 
 
     );
+    res.send()
 });
 
 app.get('/createContract', function (req, res) {
@@ -153,7 +176,7 @@ app.get('/viewcontract', function (req, res) {
 //         // res.json();
 // });
 
-app.post('/contracts', function (req, res) {
+app.get('/v1/contracts', function (req, res) {
     contractsCollection.find().toArray(function (err, docs) {
         console.log(docs);
         res.json(docs);
